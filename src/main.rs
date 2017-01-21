@@ -28,12 +28,24 @@ fn replace(old: &[u8], new: &[u8], buffer: &mut [u8]) {
     let mut buffer_index = 0;
     let buffer_len = buffer.len();
     let old_len = old.len();
+    let new_len = new.len();
+    let gap_len = old_len - new_len;
     
     while buffer_index + old_len < buffer_len {
-        let mut buffer_slice = &mut buffer[buffer_index..buffer_index+old_len];
-        if buffer_slice == old {
-            buffer_slice.copy_from_slice(new);
-            buffer_index += old_len;
+        if buffer[buffer_index..buffer_index+old_len] == *old {
+            // TODO: handle no terminator
+            for new_index in 0..new_len {
+                buffer[buffer_index] = new[new_index];
+                buffer_index += 1;
+            }
+            while buffer[buffer_index + gap_len] != 0 {
+                buffer[buffer_index] = buffer[buffer_index + gap_len];
+                buffer_index += 1;
+            }
+            while buffer[buffer_index] != 0 {
+                buffer[buffer_index] = 0;
+                buffer_index += 1;
+            }
         } else {
             buffer_index += 1;
         }
@@ -62,9 +74,25 @@ mod tests {
     
     #[test]
     fn when_old_is_same_length_as_new_then_replacement_occurs() {
-        let mut buffer = create_buffer(b"abcde");
+        let mut buffer = create_buffer(b"abcd\0e");
         replace(b"bc", b"yz", &mut buffer);
-        let expected = create_buffer(b"ayzde");
+        let expected = create_buffer(b"ayzd\0e");
+        assert_eq!(expected, buffer);
+    }
+    
+    #[test]
+    fn when_old_is_longer_than_new_and_there_are_no_trailing_characters_then_string_is_padded_with_null() {
+        let mut buffer = create_buffer(b"abcde\0f");
+        replace(b"bcde", b"yz", &mut buffer);
+        let expected = create_buffer(b"ayz\0\0\0f");
+        assert_eq!(expected, buffer);
+    }
+    
+    #[test]
+    fn when_old_is_longer_than_new_and_there_are_characters_after_old_then_trailing_characters_are_shifted() {
+        let mut buffer = create_buffer(b"abcdefg\0h");
+        replace(b"bcde", b"yz", &mut buffer);
+        let expected = create_buffer(b"ayzfg\0\0\0h");
         assert_eq!(expected, buffer);
     }
     
