@@ -21,7 +21,7 @@ fn main() {
         replace(old, new, file_mmap.as_mut_slice());
     }
     
-    file_mmap.flush();
+    file_mmap.flush().unwrap();
 }
 
 fn replace(old: &[u8], new: &[u8], buffer: &mut [u8]) {
